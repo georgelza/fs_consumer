@@ -1,0 +1,80 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka_producer
+  namespace: app
+  labels:
+    app: kafka_producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka_producer
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: kafka_consumer_mongo
+    spec:
+      containers:
+        - name: kafka_consumer_mongo
+          image: 383982001916.dkr.ecr.af-south-1.amazonaws.com/kafka-consumer-mongo:0.0.1
+          imagePullPolicy: Always
+
+          envFrom:
+            - configMapRef:
+                name: mongo-consumer-configmap
+            - configMapRef:
+                name: kafka-configmap
+            - configMapRef:
+                name: mongo-configmap
+          env:
+# Kafka
+            - name: kafka_bootstrap_servers
+              valueFrom:
+                secretKeyRef:
+                  name: kafkasecret
+                  key: kafka_bootstrap_servers
+
+            - name: kafka_bootstrap_port
+              valueFrom:
+                secretKeyRef:
+                  name: kafkasecret
+                  key: kafka_bootstrap_port
+
+            - name: kafka_sasl_username
+              valueFrom:
+                secretKeyRef:
+                  name: kafkasecret
+                  key: kafka_sasl_username
+
+            - name: kafka_sasl_password
+              valueFrom:
+                secretKeyRef:
+                  name: kafkasecret
+                  key: kafka_sasl_password
+
+# Mongo
+            - name: mongo_username
+              valueFrom:
+                secretKeyRef:
+                  name: mongosecret
+                  key: mongo_username
+
+            - name: mongo_password
+              valueFrom:
+                secretKeyRef:
+                  name: mongosecret
+                  key: mongo_password
+
+            - name: mongo_collection
+              valueFrom:
+                secretKeyRef:
+                  name: mongosecret
+                  key: mongo_collection
+

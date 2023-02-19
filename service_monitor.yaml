@@ -1,0 +1,40 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    name: trustreg-tnxcounter-issuer
+    release: prometheus
+  namespace: trustreg
+  name: trustreg-tnxcounter-issuer
+spec:
+  endpoints:
+  - interval: 30s
+    port: http
+  selector:
+    matchLabels:
+      app: trustreg-tnxcounter-issuer
+#  namespaceSelector:
+#    matchNames:
+#    - trustreg
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    name: trustreg-tnxcounter-verifier
+    release: prometheus
+  namespace: trustreg
+  name: trustreg-tnxcounter-verifier
+spec:
+  endpoints:
+  - interval: 30s
+    port: http
+    path: /metrics
+  selector:
+    matchLabels:
+      app: trustreg-tnxcounter-verifier
+#  namespaceSelector:
+#    matchNames:
+#    - trustreg
