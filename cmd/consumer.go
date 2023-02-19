@@ -394,10 +394,6 @@ func main() {
 				// See the various bits of meta data thats included in the message object "e"
 				// fmt.Printf("message at topic/partition/offset %v/%v/%v: %s = %s\n", e.Topic, e.Partition, e.Offset, string(e.Key), string(e.Value))
 
-				// Cast the string'y value that we got from m.value into a string interface object
-				var obj map[string]interface{}
-				json.Unmarshal([]byte(string(e.Value)), &obj)
-
 				// In this example, a synchronous commit is triggered every MIN_COMMIT_COUNT messages.
 				// You could also trigger the commit on expiration of a timeout to ensure there the committed position is updated
 				// regularly.
@@ -411,33 +407,35 @@ func main() {
 					}
 				}
 
-				if vGeneral.debuglevel > 1 {
-					// prettyJSON takes a string which is actually JSON and makes it's pretty, and prints it.
-					prettyJSON(string(e.Value))
-
-				}
+				// Cast the string'y value that we got from m.value into a string interface object
+				var obj map[string]interface{}
+				json.Unmarshal([]byte(string(e.Value)), &obj)
 
 				// Cast a byte string to BSon
 				// https://stackoverflow.com/questions/39785289/how-to-marshal-json-string-to-bson-document-for-writing-to-mongodb
 				// this way we don't need to care what the source structure is, it is all cast and inserted into the defined collection.
 				doc, err := JsonToBson(e.Value)
 				if err != nil {
-					grpcLog.Errorln("Oops, we had a problem JsonToBson converting the payload ", err)
+					grpcLog.Errorln("Oops, we had a problem JsonToBson converting the payload, ", err)
 
 				}
 
 				// Time to get this into the MondoDB Collection
 				result, err := demoCollection.InsertOne(context.TODO(), doc)
 				if err != nil {
-					grpcLog.Errorln("Oops, we had a problem inserting the document ", err)
+					grpcLog.Errorln("Oops, we had a problem inserting the document, ", err)
 
 				}
-				// end insertOne
 
-				if vGeneral.debuglevel > 2 {
+				if vGeneral.debuglevel >= 2 {
 					// When you run this file, it should print:
 					// Document inserted with ID: ObjectID("...")
 					grpcLog.Infoln("Mongo Document inserted with ID: ", result.InsertedID, "\n")
+
+				} else if vGeneral.debuglevel > 2 {
+					// prettyJSON takes a string which is actually JSON and makes it's pretty, and prints it.
+					prettyJSON(string(e.Value))
+
 				}
 
 			case kafka.Error:

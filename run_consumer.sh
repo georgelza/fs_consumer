@@ -3,7 +3,7 @@
 export LOG_LEVEL=DEBUG
 export LOG_FORMAT=
 
-export DEBUGLEVEL=1
+export DEBUGLEVEL=2
 
 ########################################################################
 # Confluent Kafka Params
