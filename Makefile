@@ -1,10 +1,12 @@
+BINARY_NAME=kafka-consumer_mongo
+
 # docker commands
 build_docker:
-	docker build --platform=linux/amd64 -t kafka-consumer_mongo:0.0.1 .
-	docker tag kafka-consumer_mongo:0.0.1 383982001916.dkr.ecr.af-south-1.amazonaws.com/kafka-consumer_mongo:0.0.1
+	docker build --platform=linux/amd64 -t ${BINARY_NAME}:0.0.1 .
+	docker tag ${BINARY_NAME}:0.0.1 383982001916.dkr.ecr.af-south-1.amazonaws.com/${BINARY_NAME}:0.0.1
 
 push_docker:
-	docker push 383982001916.dkr.ecr.af-south-1.amazonaws.com/kafka-consumer_mongo:0.0.1
+	docker push 383982001916.dkr.ecr.af-south-1.amazonaws.com/${BINARY_NAME}:0.0.1
 
 # golang commands
 fmt:
@@ -15,6 +17,16 @@ lint:
 
 test:
 	go test -v -cover ./...
+
+build:
+	go build -o bin/${BINARY_NAME} ./cmd
+
+run: build 
+# setup environment variables
+	./.exps
+	./.pws
+
+	./bin/${BINARY_NAME}
 
 .PHONY: build_docker push_docker fmt lint test
 

@@ -1,4 +1,4 @@
-/*
+/****************************************************************************
 *
 *	File		: consumer.go
 *
@@ -16,7 +16,7 @@
 *
 *				kubectl -n mongo port-forward service/mongo-nodeport-svc 27017
 *
- */
+*****************************************************************************/
 package main
 
 import (
@@ -44,7 +44,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	// Logging bits
-	log "github.com/sirupsen/logrus"
+
 	glog "google.golang.org/grpc/grpclog"
 )
 
@@ -77,6 +77,7 @@ type tp_mongodb struct {
 	password   string
 	datastore  string
 	collection string
+	batch_size int
 }
 
 var (
@@ -86,38 +87,40 @@ var (
 
 // init always gets called/first before main,
 func init() {
+
+	// Keeping it simple
 	grpcLog = glog.NewLoggerV2(os.Stdout, os.Stdout, os.Stdout)
 
-	// Playing around with Logrus.
-	logLevel, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
-	if err != nil {
-		logLevel = log.InfoLevel
-	}
-	log.SetLevel(logLevel)
+	/* 	// Playing around with Logrus.
+	   	logLevel, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+	   	if err != nil {
+	   		logLevel = log.InfoLevel
+	   	}
+	   	log.SetLevel(logLevel)
 
-	log.SetOutput(os.Stdout)
-	logFormat := os.Getenv("LOG_FORMAT")
-	if logFormat == "JSON" { // if we want logs in JSON for consumption into ELK or SPLUNK, or any other NoSQL DB Store...
-		log.SetFormatter(&log.JSONFormatter{})
+	   	log.SetOutput(os.Stdout)
+	   	logFormat := os.Getenv("LOG_FORMAT")
+	   	if logFormat == "JSON" { // if we want logs in JSON for consumption into ELK or SPLUNK, or any other NoSQL DB Store...
+	   		log.SetFormatter(&log.JSONFormatter{})
 
-	}
+	   	} */
 
-	fmt.Println("###############################################################")
-	fmt.Println("#")
-	fmt.Println("#   File      : consumer.go")
-	fmt.Println("#")
-	fmt.Println("#   Comment   : Applab Demo App")
-	fmt.Println("#             : =>")
-	fmt.Println("#             : Kafka Consumer - Confluent")
-	fmt.Println("#             : MongoDB Client")
-	fmt.Println("#")
-	fmt.Println("#   By        : George Leonard (georgelza@gmail.com)")
-	fmt.Println("#")
-	fmt.Println("#   Date/Time :", time.Now().Format("2006-02-01 - 15:04:05"))
-	fmt.Println("#")
-	fmt.Println("###############################################################")
-	fmt.Println("")
-	fmt.Println("")
+	grpcLog.Infoln("###############################################################")
+	grpcLog.Infoln("#")
+	grpcLog.Infoln("#   File      : consumer.go")
+	grpcLog.Infoln("#")
+	grpcLog.Infoln("#   Comment   : Applab Demo App")
+	grpcLog.Infoln("#             : =>")
+	grpcLog.Infoln("#             : Kafka Consumer - Confluent")
+	grpcLog.Infoln("#             : MongoDB Client")
+	grpcLog.Infoln("#")
+	grpcLog.Infoln("#   By        : George Leonard (georgelza@gmail.com)")
+	grpcLog.Infoln("#")
+	grpcLog.Infoln("#   Date/Time :", time.Now().Format("27-01-2023 - 15:04:05"))
+	grpcLog.Infoln("#")
+	grpcLog.Infoln("###############################################################")
+	grpcLog.Infoln("")
+	grpcLog.Infoln("")
 
 }
 
@@ -134,6 +137,13 @@ func loadGeneralProps() tp_general {
 
 	vGeneral.logformat = os.Getenv("LOG_FORMAT")
 	vGeneral.loglevel = os.Getenv("LOG_LEVEL")
+
+	// Lets manage how much we print to the screen
+	vGeneral.debuglevel, err = strconv.Atoi(os.Getenv("DEBUGLEVEL"))
+	if err != nil {
+		grpcLog.Error("String to Int convert error: %s", err)
+
+	}
 
 	// Lets manage how much we print to the screen
 	vGeneral.debuglevel, err = strconv.Atoi(os.Getenv("DEBUGLEVEL"))
@@ -216,7 +226,10 @@ func loadKafkaProps() tp_kafka {
 
 func loadMongoProps() tp_mongodb {
 
-	var vMongo tp_mongodb
+	var (
+		vMongo tp_mongodb
+		err    interface{}
+	)
 
 	vMongo.url = os.Getenv("mongo_url")
 	vMongo.port = os.Getenv("mongo_port")
@@ -225,14 +238,35 @@ func loadMongoProps() tp_mongodb {
 	vMongo.datastore = os.Getenv("mongo_datastore")
 	vMongo.collection = os.Getenv("mongo_collection")
 
+	// Lets manage how much we print to the screen
+	vMongo.batch_size, err = strconv.Atoi(os.Getenv("mongo_batchsize"))
+	if err != nil {
+		grpcLog.Error("String to Int convert error: %s", err)
+
+	}
+
 	grpcLog.Infoln("****** MongoDB Connection Parameters *****")
 	grpcLog.Info("* Mongo URL is\t\t", vMongo.url)
 	grpcLog.Info("* Mongo Port is\t\t", vMongo.port)
 	grpcLog.Info("* Mongo DataStore is\t\t", vMongo.datastore)
 	grpcLog.Info("* Mongo Collection is\t\t", vMongo.collection)
+	grpcLog.Info("* Mongo Batch szie is\t\t", vMongo.batch_size)
 	grpcLog.Info("* ")
 
 	return vMongo
+}
+
+// Pretty Print JSON string
+func prettyPrintJSON(v interface{}) {
+	tmpBArray, err := json.MarshalIndent(v, "", "    ")
+	if err == nil {
+		grpcLog.Infof("Message:\n%s\n", tmpBArray)
+
+	} else {
+		grpcLog.Error("Really!?!? How is this possible:", err)
+		return
+
+	}
 }
 
 func prettyJSON(ms string) {
@@ -361,16 +395,23 @@ func main() {
 	// Define the Mongo Datastore
 	appLabDatabase := Mongoclient.Database(vMongo.datastore)
 	// Define the Mongo Collection Object
-	demoCollection := appLabDatabase.Collection(vMongo.collection)
+	col := appLabDatabase.Collection(vMongo.collection)
 
 	grpcLog.Infoln("* MongoDB Datastore and Collection Intialized")
 	grpcLog.Infoln("*")
+
+	grpcLog.Infoln("**** LETS GO Processing ****")
+	grpcLog.Infoln("")
 
 	////////////////////////////////////////////////////////////
 	// Lets start the loop
 	////////////////////////////////////////////////////////////
 	run := true
-	msg_count := 0
+	msg_kafka_count := 0
+	msg_mongo_count := 0
+
+	docs := make([]interface{}, vMongo.batch_size)
+
 	for run {
 
 		select {
@@ -397,19 +438,8 @@ func main() {
 				// In this example, a synchronous commit is triggered every MIN_COMMIT_COUNT messages.
 				// You could also trigger the commit on expiration of a timeout to ensure there the committed position is updated
 				// regularly.
-				msg_count += 1
-				if msg_count%vKafka.commit_interval == 0 {
-					krdr.Commit()
-					if vGeneral.debuglevel > 0 {
-						// When you run this file, it should print:
-						// Document inserted with ID: ObjectID("...")
-						grpcLog.Infoln("Kafka Commit(): ", msg_count)
-					}
-				}
-
-				// Cast the string'y value that we got from m.value into a string interface object
-				var obj map[string]interface{}
-				json.Unmarshal([]byte(string(e.Value)), &obj)
+				msg_kafka_count += 1
+				msg_mongo_count += 1
 
 				// Cast a byte string to BSon
 				// https://stackoverflow.com/questions/39785289/how-to-marshal-json-string-to-bson-document-for-writing-to-mongodb
@@ -420,21 +450,57 @@ func main() {
 
 				}
 
-				// Time to get this into the MondoDB Collection
-				result, err := demoCollection.InsertOne(context.TODO(), doc)
-				if err != nil {
-					grpcLog.Errorln("Oops, we had a problem inserting the document, ", err)
-
+				if msg_kafka_count%vKafka.commit_interval == 0 {
+					krdr.Commit()
+					if vGeneral.debuglevel >= 2 {
+						// When you run this file, it should print:
+						// Document inserted with ID: ObjectID("...")
+						grpcLog.Infoln("Kafka Commit(): ", msg_kafka_count)
+					}
+					//msg_kafka_count = 0
 				}
 
-				if vGeneral.debuglevel >= 2 {
-					// When you run this file, it should print:
-					// Document inserted with ID: ObjectID("...")
-					grpcLog.Infoln("Mongo Document inserted with ID: ", result.InsertedID, "\n")
+				// Single Record inserts
+				if vMongo.batch_size == 1 {
 
-				} else if vGeneral.debuglevel > 2 {
-					// prettyJSON takes a string which is actually JSON and makes it's pretty, and prints it.
-					prettyJSON(string(e.Value))
+					// Time to get this into the MondoDB Collection
+					result, err := col.InsertOne(context.TODO(), doc)
+					if err != nil {
+						grpcLog.Errorln("Oops, we had a problem inserting (I1) the document, ", err)
+
+					}
+
+					if vGeneral.debuglevel >= 2 {
+						// When you run this file, it should print:
+						// Document inserted with ID: ObjectID("...")
+						grpcLog.Infoln("Mongo Doc inserted with ID: ", result.InsertedID, "\n")
+
+					}
+					if vGeneral.debuglevel >= 3 {
+						// prettyJSON takes a string which is actually JSON and makes it's pretty, and prints it.
+						prettyJSON(string(e.Value))
+
+					}
+
+				} else {
+
+					docs[msg_mongo_count-1] = doc
+
+					if msg_mongo_count%vMongo.batch_size == 0 {
+
+						// Time to get this into the MondoDB Collection
+						_, err = col.InsertMany(context.TODO(), docs)
+						if err != nil {
+							grpcLog.Errorln("Oops, we had a problem inserting (IM) the document, ", err)
+
+						}
+						if vGeneral.debuglevel >= 2 {
+							grpcLog.Infoln("Mongo Docs inserted: ", msg_kafka_count)
+
+						}
+						msg_mongo_count = 0
+
+					}
 
 				}
 
@@ -453,5 +519,11 @@ func main() {
 				grpcLog.Errorln("Kafka Ignored ", e)
 			}
 		}
+	}
+
+	if vGeneral.debuglevel > 0 {
+		grpcLog.Infoln("")
+		grpcLog.Infoln("**** DONE Processing ****")
+		grpcLog.Infoln("")
 	}
 }
