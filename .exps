@@ -13,7 +13,7 @@ export LOG_FORMAT=
 export DEBUGLEVEL=1
 
 ########################################################################
-# Confluent Kafka Params
+# Confluent Kafka Params    - ePay devlab cluster
 export kafka_bootstrap_port=9092
 #export kafka_topic_name=SNDBX_TFM_paymentnrt
 export kafka_topic_name=SNDBX_TFM_engineResponse

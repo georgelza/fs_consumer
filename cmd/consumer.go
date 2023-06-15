@@ -14,7 +14,7 @@
 *
 *	Partly		: https://github.com/sohamkamani/golang-kafka-example/blob/master/main.go
 *
-*				kubectl -n mongo port-forward service/mongo-nodeport-svc 27017
+*				: collection in cluster on MongoDB Atlas - Google auth georgelza@gmail.com
 *
 *****************************************************************************/
 package main

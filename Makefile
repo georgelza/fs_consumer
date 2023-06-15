@@ -1,3 +1,5 @@
+.ONESHELL:
+
 BINARY_NAME=kafka-consumer_mongo
 
 # docker commands
